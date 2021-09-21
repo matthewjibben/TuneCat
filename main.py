@@ -105,7 +105,7 @@ class MusicPlayer(commands.Cog):
         # todo cannot play music while currently in a vc
         # todo player occasionally cuts out
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn'}
+                          'options': '-vn -bufsize 64k'}
         vc = await self.join(ctx)
 
         ydl_opts = {'format': 'bestaudio'}
