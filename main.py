@@ -50,6 +50,18 @@ class MusicPlayer(commands.Cog):
         if len(bot.voice_clients)>0:
             await ctx.voice_client.disconnect()
 
+    @commands.command(aliases=['s'])
+    async def stop(self, ctx):
+        ctx.voice_client.stop()
+
+    @commands.command(aliases=[])
+    async def pause(self, ctx):
+        ctx.voice_client.pause()
+
+    @commands.command(aliases=['unpause'])
+    async def resume(self, ctx):
+        ctx.voice_client.resume()
+
 
     # @commands.command(aliases=[])
     # async def summon(self, ctx):
@@ -62,6 +74,10 @@ class MusicPlayer(commands.Cog):
     @commands.command(aliases=['p'])
     async def play(self, ctx, *args):
         # todo cannot play music while currently in a vc
+        # todo -play another song should add to queue
+        # todo -skip
+        if len(args)==0: # and ctx.voice_client.is_paused:
+            return ctx.voice_client.resume()
 
         vc = await self.join(ctx)
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
