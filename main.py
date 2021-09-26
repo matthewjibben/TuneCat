@@ -56,23 +56,34 @@ class VoiceState:
         while True:
             print("audio p[layer task==============================")
             self.play_next_song.clear()
-            print(1)
             self.current_song = await self.songs.get()
-            print(2)
-            await self.ctx.send('Now playing ' + str(self.current_song))
-            print(3)
             # self.current_song.player.start()
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(self.current_song, download=False)
                 URL = info['formats'][0]['url']
-            print(4)
+                title = info['title']
+            await self.ctx.send('Now playing: ' + str(title)) # todo make this a discord.embed
             self.ctx.voice_client.play(discord.FFmpegPCMAudio(URL, **FFMPEG_OPTIONS), after=self.toggle_next)
-            print(5)
             await self.play_next_song.wait()
 
 
 
 
+# class Song:
+#     def __init__(self, url):
+#         self.url = url
+#         self.name = "name"
+#
+#     def create_embed(self):
+#         embed = (discord.Embed(title='Now playing', description='```css\n{0.source.title}\n```'.format(self),
+#                                color=discord.Color.blurple())
+#                  .add_field(name='Duration', value=self.source.duration)
+#                  .add_field(name='Requested by', value=self.requester.mention)
+#                  .add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
+#                  .add_field(name='URL', value='[Click]({0.source.url})'.format(self))
+#                  .set_thumbnail(url=self.source.thumbnail)
+#                  .set_author(name=self.requester.name, icon_url=self.requester.avatar_url))
+#         return embed
 
 
 
