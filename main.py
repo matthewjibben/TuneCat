@@ -4,13 +4,78 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 import youtube_dl
-
-
-
-
-
+import asyncio
+import itertools
+import random
 bot = commands.Bot(command_prefix='-')
-# client = discord.Client()
+
+
+class VoiceError(Exception):
+    pass
+
+
+# VoiceStates store useful server-specific information like the song queue, if it is set to loop, etc.
+# Using a single VoiceState for each server allows the bot to work in multiple servers
+class VoiceState:
+    def __init__(self, bot, ctx):
+        self.current_song = None
+        self.voice = None
+        self.ctx = ctx
+        self.bot = bot
+        self.play_next_song = asyncio.Event()
+        self.songs = asyncio.Queue()
+        self.audio_player = self.bot.loop.create_task(self.audio_player_task())
+
+    @property
+    def player(self):
+        return self.current_song.player
+
+    def skip(self):
+        if self.ctx.voice_client.is_playing():
+            pass # todo actually implement skip
+
+    def toggle_next(self, error=None):
+        if error:
+            raise VoiceError(str(error))
+
+        self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
+
+    # main async task
+    # play the next song in the queue until there are no more songs to play
+    async def audio_player_task(self):
+        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                          'options': '-vn -bufsize 64k'}
+
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
+        }
+
+
+
+        while True:
+            print("audio p[layer task==============================")
+            self.play_next_song.clear()
+            print(1)
+            self.current_song = await self.songs.get()
+            print(2)
+            await self.ctx.send('Now playing ' + str(self.current_song))
+            print(3)
+            # self.current_song.player.start()
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(self.current_song, download=False)
+                URL = info['formats'][0]['url']
+            print(4)
+            self.ctx.voice_client.play(discord.FFmpegPCMAudio(URL, **FFMPEG_OPTIONS), after=self.toggle_next)
+            print(5)
+            await self.play_next_song.wait()
+
+
+
+
+
+
+
 
 
 @bot.event
@@ -23,17 +88,23 @@ class MusicPlayer(commands.Cog):
         self.bot = bot
         self.voice_states = {}
 
-    # def get_voice_state(self, server):
-    #     state = self.voice_states.get(server.id)
-    #     if state is None:
-    #         state = VoiceState(self.bot)
-    #         self.voice_states[server.id] = state
-    #
-    #     return state
+    def get_voice_state(self, ctx: commands.Context):
+        state = self.voice_states.get(ctx.guild.id)
+        if state is None:
+            state = VoiceState(self.bot, ctx)
+            self.voice_states[ctx.guild.id] = state
+
+        print("voice state get: id:{}, {}".format(ctx.guild.id, state))
+        print(self.voice_states)
+        return state
 
 
 
+    async def cog_before_invoke(self, ctx: commands.Context):
+        ctx.voice_state = self.get_voice_state(ctx)
 
+    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        await ctx.send('An error occurred: {}'.format(str(error)))
 
 
     @commands.command(aliases=['j'])
@@ -76,21 +147,23 @@ class MusicPlayer(commands.Cog):
         # todo cannot play music while currently in a vc
         # todo -play another song should add to queue
         # todo -skip
+        # todo if alone in a call, leave
+        # todo loop, repeat
+        # todo if ctx never changes in the voicestate, there are issues (always comment in the same area)
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
 
-        vc = await self.join(ctx)
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn -bufsize 64k'}
 
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
-        }
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(args[0], download=False)
-            URL = info['formats'][0]['url']
-        vc.play(discord.FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
+        state = self.get_voice_state(ctx)
+
+        if not ctx.voice_client:
+            await self.join(ctx)
+
+        await ctx.voice_state.songs.put(args[0])
+        await ctx.send('Enqueued {}'.format(str(args[0])))
+
+        if not ctx.voice_client.is_playing:
+            state.toggle_next()
 
         return
 
