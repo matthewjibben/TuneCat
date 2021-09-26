@@ -96,6 +96,8 @@ class MusicPlayer(commands.Cog):
 
         print("voice state get: id:{}, {}".format(ctx.guild.id, state))
         print(self.voice_states)
+        # update the VoiceState's current ctx
+        state.ctx = ctx
         return state
 
 
@@ -149,7 +151,6 @@ class MusicPlayer(commands.Cog):
         # todo -skip
         # todo if alone in a call, leave
         # todo loop, repeat
-        # todo if ctx never changes in the voicestate, there are issues (always comment in the same area)
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
 
