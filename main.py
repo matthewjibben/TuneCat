@@ -47,7 +47,7 @@ class VoiceState:
                           'options': '-vn -bufsize 64k'}
 
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': '249/250/251',
             'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
         }
 
@@ -63,27 +63,8 @@ class VoiceState:
                 URL = info['formats'][0]['url']
                 title = info['title']
             await self.ctx.send('Now playing: ' + str(title)) # todo make this a discord.embed
-            self.ctx.voice_client.play(discord.FFmpegPCMAudio(URL, **FFMPEG_OPTIONS), after=self.toggle_next)
+            self.ctx.voice_client.play(discord.FFmpegOpusAudio(URL, **FFMPEG_OPTIONS), after=self.toggle_next)
             await self.play_next_song.wait()
-
-
-
-
-# class Song:
-#     def __init__(self, url):
-#         self.url = url
-#         self.name = "name"
-#
-#     def create_embed(self):
-#         embed = (discord.Embed(title='Now playing', description='```css\n{0.source.title}\n```'.format(self),
-#                                color=discord.Color.blurple())
-#                  .add_field(name='Duration', value=self.source.duration)
-#                  .add_field(name='Requested by', value=self.requester.mention)
-#                  .add_field(name='Uploader', value='[{0.source.uploader}]({0.source.uploader_url})'.format(self))
-#                  .add_field(name='URL', value='[Click]({0.source.url})'.format(self))
-#                  .set_thumbnail(url=self.source.thumbnail)
-#                  .set_author(name=self.requester.name, icon_url=self.requester.avatar_url))
-#         return embed
 
 
 
@@ -170,7 +151,7 @@ class MusicPlayer(commands.Cog):
 
         if not ctx.voice_client:
             await self.join(ctx)
-
+        # todo check if supported url
         await ctx.voice_state.songs.put(args[0])
         await ctx.send('Enqueued {}'.format(str(args[0])))
 
