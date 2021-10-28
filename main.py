@@ -7,6 +7,9 @@ import youtube_dl
 import asyncio
 import itertools
 import random
+import PlaylistManager
+
+
 bot = commands.Bot(command_prefix='-')
 
 
@@ -23,7 +26,7 @@ class VoiceState:
         self.ctx = ctx
         self.bot = bot
         self.play_next_song = asyncio.Event()
-        self.songs = asyncio.Queue()
+        self.songs = PlaylistManager.Playlist()
         self.audio_player = self.bot.loop.create_task(self.audio_player_task())
 
     @property
@@ -57,9 +60,10 @@ class VoiceState:
             print("audio p[layer task==============================")
             self.play_next_song.clear()
             self.current_song = await self.songs.get()
+            print("got a song")
             # self.current_song.player.start()
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(self.current_song, download=False)
+                info = ydl.extract_info(self.current_song.url, download=False)
                 URL = info['formats'][0]['url']
                 title = info['title']
             await self.ctx.send('Now playing: ' + str(title)) # todo make this a discord.embed
@@ -73,6 +77,13 @@ class VoiceState:
 @bot.event
 async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
+
+
+def get_song_display(song):
+    if song.url:
+        return song.url
+    else:
+        return song.title + " - " + song.artist
 
 class MusicPlayer(commands.Cog):
     # use self.voice_states to enable usage in multiple servers
@@ -127,6 +138,27 @@ class MusicPlayer(commands.Cog):
     async def resume(self, ctx):
         ctx.voice_client.resume()
 
+    @commands.command(aliases=[''])
+    async def skip(self, ctx):
+        ctx.voice_client.stop()
+        ctx.voice_state.toggle_next()
+        await ctx.voice_state.songs.get()
+
+    @commands.command(aliases=['display', 'print'])
+    async def showqueue(self, ctx):
+        # todo update this to a discord embedded message
+        message = "```"
+        for i, item in enumerate(ctx.voice_state.songs):
+            message += str(i) + ". " + get_song_display(item) + "\n"
+            if len(message) >= 1000:
+                message += "...\n"
+                last_item = ctx.voice_state.songs[len(ctx.voice_state.songs)-2]
+                message += str(len(ctx.voice_state.songs)) + ". " + get_song_display(last_item) + "\n"
+                break
+        message += "```"
+        await ctx.send(message)
+
+
 
     # @commands.command(aliases=[])
     # async def summon(self, ctx):
@@ -143,6 +175,8 @@ class MusicPlayer(commands.Cog):
         # todo -skip
         # todo if alone in a call, leave
         # todo loop, repeat
+        # todo if there are more than 1 args, add them all together (should be a search)
+        # todo if no url is available, use title and artist to find a source
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
 

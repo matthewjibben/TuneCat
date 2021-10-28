@@ -9,6 +9,16 @@ import itertools
 import random
 import requests
 import re
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
+
+spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=os.getenv('SPOTIFY_CLIENT_ID'),
+                                                           client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')))
+
+ydl = youtube_dl.YoutubeDL({'dump_single_json': True,
+                            'extract_flat' : True})
+
 
 
 #
@@ -18,8 +28,13 @@ import re
 # spotify playlists and tracks will use the artist id and track name to attempt to find a source on soundcloud/youtube
 # playlists can be added together
 
-ydl = youtube_dl.YoutubeDL({'dump_single_json': True,
-                            'extract_flat' : True})
+class SourceError(Exception):
+    pass
+
+
+
+
+
 
 def ytdl_make_url(ytdl_dict):
     # convert youtube_dl video dictionaries into valid urls
@@ -28,7 +43,7 @@ def ytdl_make_url(ytdl_dict):
 
 
 class Song:
-    def __init__(self, url):
+    def __init__(self, url=""):
         self.url = url
         self.title = ""
         self.artist = ""
@@ -59,6 +74,7 @@ class Playlist(asyncio.Queue):
         self._spotify_artist_re = re.compile(r"https?://(.*\.)*spotify.com/artists?/(.*)")
         self._spotify_playlist_re = re.compile(r"https?://(.*\.)*spotify.com/playlists?/(.*)")
 
+
     def __getitem__(self, item):
         if isinstance(item, slice):
             return list(itertools.islice(self._queue, item.start, item.stop, item.step))
@@ -80,6 +96,34 @@ class Playlist(asyncio.Queue):
     def remove(self, index: int):
         del self._queue[index]
 
+    async def add_spotify_songs(self, link):
+        # given a spotify link, add the song/songs
+        # todo it is necessary to add all songs as just title and artist, and find each song before playing
+        if self._spotify_track_re.match(link):
+            pass
+        elif self._spotify_album_re.match(link):
+            pass
+        elif self._spotify_artist_re.match(link):
+            pass
+        elif self._spotify_playlist_re.match(link):
+            playlist = spotify.playlist(link)
+            for i, song in enumerate(playlist['tracks']['items']):
+                temp = Song()
+                temp.artist = song['track']['artists'][0]['name']
+                temp.title = song['track']['name']
+                # search_key = song['track']['name'] + "-" + song['track']['artists'][0]['name']
+                # print(i, search_key)
+                # video_info = ydl.extract_info(f"ytsearch:{search_key}", download=False)['entries'][0]
+                # video = Song(ytdl_make_url(video_info))
+                # print()
+                await super().put(temp)
+
+
+        else:
+            pass
+
+        return
+
 
     async def put(self, item):
         # todo convert item to song
@@ -93,7 +137,10 @@ class Playlist(asyncio.Queue):
             await super().put(video)
         else:
             # if it is a valid url, find an audio source and add to queue
-            #
+            # check if it is a spotify
+            if self._spotify_re.match(item):
+                print("this is a spotify ==============================")
+                await self.add_spotify_songs(item)
             await super().put(Song(item))
 
 
