@@ -142,7 +142,6 @@ class MusicPlayer(commands.Cog):
     async def skip(self, ctx):
         ctx.voice_client.stop()
         ctx.voice_state.toggle_next()
-        await ctx.voice_state.songs.get()
 
     @commands.command(aliases=['display', 'print'])
     async def showqueue(self, ctx):
@@ -175,10 +174,13 @@ class MusicPlayer(commands.Cog):
         # todo -skip
         # todo if alone in a call, leave
         # todo loop, repeat
-        # todo if there are more than 1 args, add them all together (should be a search)
         # todo if no url is available, use title and artist to find a source
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
+        elif len(args)>1:
+            input_val = " ".join(args)
+        else:
+            input_val = args[0]
 
 
         state = self.get_voice_state(ctx)
@@ -186,8 +188,8 @@ class MusicPlayer(commands.Cog):
         if not ctx.voice_client:
             await self.join(ctx)
         # todo check if supported url
-        await ctx.voice_state.songs.put(args[0])
-        await ctx.send('Enqueued {}'.format(str(args[0])))
+        await ctx.voice_state.songs.put(input_val)
+        await ctx.send('Enqueued {}'.format(str(input_val)))
 
         if not ctx.voice_client.is_playing:
             state.toggle_next()
