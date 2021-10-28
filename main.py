@@ -152,7 +152,7 @@ class MusicPlayer(commands.Cog):
             message += str(i) + ". " + get_song_display(item) + "\n"
             if len(message) >= 1000:
                 message += "...\n"
-                last_item = ctx.voice_state.songs[len(ctx.voice_state.songs)-2]
+                last_item = ctx.voice_state.songs[len(ctx.voice_state.songs)-1]
                 message += str(len(ctx.voice_state.songs)) + ". " + get_song_display(last_item) + "\n"
                 break
         message += "```"

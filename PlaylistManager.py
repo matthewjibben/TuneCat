@@ -99,15 +99,33 @@ class Playlist(asyncio.Queue):
     async def add_spotify_songs(self, link):
         # given a spotify link, add the song/songs
         # todo it is necessary to add all songs as just title and artist, and find each song before playing
+        # otherwise, it will take too long to find all the sources and slow down the bot
         if self._spotify_track_re.match(link):
-            pass
+            song = spotify.track(link)
+            temp = Song()
+            temp.artist = song['artists'][0]['name']
+            temp.title = song['name']
+            await super().put(temp)
+
         elif self._spotify_album_re.match(link):
-            pass
+            album = spotify.album(link)
+            for song in album['tracks']['items']:
+                temp = Song()
+                temp.artist = song['artists'][0]['name']
+                temp.title = song['name']
+                await super().put(temp)
+
         elif self._spotify_artist_re.match(link):
-            pass
+            artist = spotify.artist_top_tracks(link)
+            for song in artist['tracks']:
+                temp = Song()
+                temp.artist = song['artists'][0]['name']
+                temp.title = song['name']
+                await super().put(temp)
+
         elif self._spotify_playlist_re.match(link):
             playlist = spotify.playlist(link)
-            for i, song in enumerate(playlist['tracks']['items']):
+            for song in playlist['tracks']['items']:
                 temp = Song()
                 temp.artist = song['track']['artists'][0]['name']
                 temp.title = song['track']['name']
@@ -118,9 +136,8 @@ class Playlist(asyncio.Queue):
                 # print()
                 await super().put(temp)
 
-
         else:
-            pass
+            raise SourceError("Invalid link given")
 
         return
 
@@ -141,7 +158,8 @@ class Playlist(asyncio.Queue):
             if self._spotify_re.match(item):
                 print("this is a spotify ==============================")
                 await self.add_spotify_songs(item)
-            await super().put(Song(item))
+            else:
+                await super().put(Song(item))
 
 
 
