@@ -151,6 +151,23 @@ class Song:
             return self.url
 
 
+        # if a result isnt found on soundcloud, instead search youtube and find the best result there
+        yt_search = ydl.extract_info(f"ytsearch5:{query}", download=False)['entries']
+        close_results = []
+        # get results where the duration is within 1.5 seconds
+        for i, video in enumerate(yt_search):
+            print(i, abs(video['duration']*1000-self.length))
+            if abs((video['duration']*1000)-self.length) <= 1500:
+                close_results.append(video)
+        # choose the result with the highest number of views
+        if len(close_results) > 0:
+            best_result = max(close_results, key=lambda track: track['view_count'])
+            print(close_results)
+            self.url = ytdl_make_url(best_result)
+            return self.url
+
+
+
 
 
 
