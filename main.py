@@ -148,7 +148,7 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=[''])
     async def skip(self, ctx):
-        ctx.voice_client.stop()
+        ctx.voice_client.pause()
         ctx.voice_state.toggle_next()
 
     @commands.command(aliases=['display', 'print'])
