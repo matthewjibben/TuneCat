@@ -50,7 +50,7 @@ class VoiceState:
                           'options': '-vn -bufsize 64k'}
 
         ydl_opts = {
-            'format': '249/250/251',
+            'format': 'bestaudio/best',
             'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
         }
 
@@ -61,6 +61,14 @@ class VoiceState:
             self.play_next_song.clear()
             self.current_song = await self.songs.get()
             print("got a song")
+
+            # if the current song does not have a valid url, search soundcloud and/or youtube
+            if not self.current_song.url:
+                print("attempting to find a url")
+                await self.current_song.get_url()
+                if not self.current_song.url:
+                    await self.ctx.send(f"Could not find a source for: {self.current_song.title} - {self.current_song.artist}")
+                    continue
             # self.current_song.player.start()
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(self.current_song.url, download=False)

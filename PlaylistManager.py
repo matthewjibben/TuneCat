@@ -11,6 +11,12 @@ import requests
 import re
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from sclib.asyncio import SoundcloudAPI, Track
+from json import loads
+from requests import get
+import sys
+
+
 
 
 spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=os.getenv('SPOTIFY_CLIENT_ID'),
@@ -32,8 +38,16 @@ class SourceError(Exception):
     pass
 
 
+class HiddenPrints:
+    # a tiny class to prevent some nasty functions from printing to stdout
+    # use "with HiddenPrints():"
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w', encoding='utf-8')
 
-
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 
 def ytdl_make_url(ytdl_dict):
@@ -42,16 +56,103 @@ def ytdl_make_url(ytdl_dict):
 
 
 
+
+soundcloud_guest_client_id = os.getenv('SOUNDCLOUD_CLIENT_ID')
+
+with HiddenPrints():
+    soundcloud_api = SoundcloudAPI()
+    soundcloud_api.client_id = os.getenv('SOUNDCLOUD_CLIENT_ID')
+
+
+def soundcloud_search(query, cid):
+    global soundcloud_api
+    url = "https://api-v2.soundcloud.com/search?q={query}&client_id={client_id}&limit={limit}&offset={offset}".format(query=query, client_id=cid, limit=10, offset=0)
+
+    while url:
+        response = get(url)
+        if response.status_code != 200:
+            return
+        try:
+            doc = loads(response.text)
+        except:
+            return
+        for entity in doc['collection']:
+            if entity['kind'] == 'track':
+                print(entity)
+                track = Track(obj=entity, client=soundcloud_api)
+                yield track
+
+        url = doc.get('next_href')
+
+
+
+
+
 class Song:
     def __init__(self, url=""):
         self.url = url
         self.title = ""
         self.artist = ""
+        self.length = 0 # song length in ms
         self.ytdl_dict = {}
 
 
     def __str__(self):
-        return "url: " + self.url
+        return "url: " + self.url # todo maybe update this to either url or artist/name?
+
+
+    # todo this often does not find a source. ideas:
+    # use the length of the song and find a video with similar length +/- 1~2 seconds
+    # follow https://github.com/robinfriedli/botify/issues/137 ->
+    # https://github.com/robinfriedli/botify/blob/development/v2.0/src/main/java/net/robinfriedli/botify/audio/youtube/YouTubeService.java#L153
+    #
+    async def get_url(self):
+        if self.url:
+            return self.url
+
+        global soundcloud_api # todo maybe check if current credentials are still working
+
+        # search for a song url given a query: usually a song name plus artist name
+        query = f"{self.title} - {self.artist}"
+        result = soundcloud_search(query, soundcloud_api.client_id)
+        search_results = []
+        leng = 0
+        for s in result:
+            leng += 1
+            # print(song_url)
+            # s = await soundcloud_api.resolve(song_url)
+            print(f"found on soundcloud: {s.title} - {s.artist} - {s.permalink_url} duration: {s.duration} PLAYS: {s.playback_count}")
+
+            # ensure that we found the correct song
+            # todo artist is not always correct
+
+            # try to get the exact track as quickly as possible
+            # if not found, get all search results and find the best one
+            if s.artist.lower() == self.artist.lower() and s.title.lower() == self.title.lower():
+                self.url = s.permalink_url
+                return self.url
+            else:
+                search_results.append(s)
+
+        # if we cant find an exact match, use several different metrics to find the correct track
+        # metrics: title similarity, track duration, total play count
+        # first, remove all clearly incorrect results
+        print(f"length: {len(search_results)} vs {leng}")
+        close_results = []
+        for i, song in enumerate(search_results):
+            print(i, abs(song.duration-self.length))
+            if abs(song.duration-self.length) <= 1500:
+                close_results.append(song)
+        # choose the result with the highest number of views
+        if len(close_results)>0:
+            best_result = max(close_results, key=lambda track: track.playback_count)
+            print(close_results)
+            self.url = best_result.permalink_url
+            return self.url
+
+
+
+
 
     # def create_embed(self):
     #     embed = (discord.Embed(title='Now playing', description='```css\n{0.source.title}\n```'.format(self),
@@ -105,6 +206,7 @@ class Playlist(asyncio.Queue):
             temp = Song()
             temp.artist = song['artists'][0]['name']
             temp.title = song['name']
+            temp.length = song['duration_ms']
             await super().put(temp)
 
         elif self._spotify_album_re.match(link):
@@ -113,6 +215,7 @@ class Playlist(asyncio.Queue):
                 temp = Song()
                 temp.artist = song['artists'][0]['name']
                 temp.title = song['name']
+                temp.length = song['duration_ms']
                 await super().put(temp)
 
         elif self._spotify_artist_re.match(link):
@@ -121,6 +224,7 @@ class Playlist(asyncio.Queue):
                 temp = Song()
                 temp.artist = song['artists'][0]['name']
                 temp.title = song['name']
+                temp.length = song['duration_ms']
                 await super().put(temp)
 
         elif self._spotify_playlist_re.match(link):
@@ -129,6 +233,7 @@ class Playlist(asyncio.Queue):
                 temp = Song()
                 temp.artist = song['track']['artists'][0]['name']
                 temp.title = song['track']['name']
+                temp.length = song['track']['duration_ms']
                 # search_key = song['track']['name'] + "-" + song['track']['artists'][0]['name']
                 # print(i, search_key)
                 # video_info = ydl.extract_info(f"ytsearch:{search_key}", download=False)['entries'][0]
