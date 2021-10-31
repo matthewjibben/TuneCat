@@ -170,6 +170,9 @@ class Playlist(asyncio.Queue):
         self._spotify_album_re = re.compile(r"https?://(.*\.)*spotify.com/albums?/(.*)")
         self._spotify_artist_re = re.compile(r"https?://(.*\.)*spotify.com/artists?/(.*)")
         self._spotify_playlist_re = re.compile(r"https?://(.*\.)*spotify.com/playlists?/(.*)")
+        self._soundcloud_re = re.compile(r"https?://(.*\.)*soundcloud.com/(.*)")
+        self._soundcloud_set_re = re.compile(r"https?://(.*\.)*soundcloud.com/(.*)/sets/(.*)")
+
 
 
     def __getitem__(self, item):
@@ -242,6 +245,17 @@ class Playlist(asyncio.Queue):
 
         return
 
+    async def add_soundcloud_songs(self, link):
+        if self._soundcloud_set_re.match(link):
+            global soundcloud_api
+            playlist = await soundcloud_api.resolve(link)
+            async for track in playlist:
+                print(track.permalink_url)
+                await super().put(Song(track.permalink_url))
+        else:
+            await super().put(Song(link))
+        return
+
 
     async def put(self, item):
         # todo convert item to song
@@ -259,6 +273,9 @@ class Playlist(asyncio.Queue):
             if self._spotify_re.match(item):
                 print("this is a spotify ==============================")
                 await self.add_spotify_songs(item)
+            elif self._soundcloud_re.match(item):
+                print("this is a soundcloud ==============================")
+                await self.add_soundcloud_songs(item)
             else:
                 await super().put(Song(item))
 
