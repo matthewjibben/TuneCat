@@ -47,7 +47,7 @@ class VoiceState:
     # play the next song in the queue until there are no more songs to play
     async def audio_player_task(self):
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn -bufsize 64k'}
+                          'options': '-vn -bufsize 16k'}
 
         ydl_opts = {
             'format': 'bestaudio/best',
