@@ -78,7 +78,6 @@ def soundcloud_search(query, cid):
             return
         for entity in doc['collection']:
             if entity['kind'] == 'track':
-                print(entity)
                 track = Track(obj=entity, client=soundcloud_api)
                 yield track
 
@@ -100,12 +99,10 @@ class Song:
     def __str__(self):
         return "url: " + self.url # todo maybe update this to either url or artist/name?
 
-
-    # todo this often does not find a source. ideas:
-    # use the length of the song and find a video with similar length +/- 1~2 seconds
-    # follow https://github.com/robinfriedli/botify/issues/137 ->
-    # https://github.com/robinfriedli/botify/blob/development/v2.0/src/main/java/net/robinfriedli/botify/audio/youtube/YouTubeService.java#L153
-    #
+    # use the length of the song and find a video with similar length +/- 1.5 seconds
+    # use several different metrics to find the correct track source on youtube/spotify
+    # metrics: title similarity, track duration, total play count
+    # follow https://github.com/robinfriedli/botify/issues/137
     async def get_url(self):
         if self.url:
             return self.url
@@ -115,38 +112,22 @@ class Song:
         # search for a song url given a query: usually a song name plus artist name
         query = f"{self.title} - {self.artist}"
         result = soundcloud_search(query, soundcloud_api.client_id)
-        search_results = []
-        leng = 0
+        close_results = []
         for s in result:
-            leng += 1
-            # print(song_url)
-            # s = await soundcloud_api.resolve(song_url)
-            print(f"found on soundcloud: {s.title} - {s.artist} - {s.permalink_url} duration: {s.duration} PLAYS: {s.playback_count}")
-
-            # ensure that we found the correct song
-            # todo artist is not always correct
+            # print(f"found on soundcloud: {s.title} - {s.artist} - {s.permalink_url} duration: {s.duration} PLAYS: {s.playback_count}")
 
             # try to get the exact track as quickly as possible
-            # if not found, get all search results and find the best one
             if s.artist.lower() == self.artist.lower() and s.title.lower() == self.title.lower():
                 self.url = s.permalink_url
                 return self.url
             else:
-                search_results.append(s)
+                # if we cant find an exact match, attempt to get the best result using the length, title similarity, and view count of the track
+                if abs(s.duration - self.length) <= 1500:
+                    close_results.append(s)
 
-        # if we cant find an exact match, use several different metrics to find the correct track
-        # metrics: title similarity, track duration, total play count
-        # first, remove all clearly incorrect results
-        print(f"length: {len(search_results)} vs {leng}")
-        close_results = []
-        for i, song in enumerate(search_results):
-            print(i, abs(song.duration-self.length))
-            if abs(song.duration-self.length) <= 1500:
-                close_results.append(song)
         # choose the result with the highest number of views
         if len(close_results)>0:
             best_result = max(close_results, key=lambda track: track.playback_count)
-            print(close_results)
             self.url = best_result.permalink_url
             return self.url
 
@@ -156,13 +137,11 @@ class Song:
         close_results = []
         # get results where the duration is within 1.5 seconds
         for i, video in enumerate(yt_search):
-            print(i, abs(video['duration']*1000-self.length))
             if abs((video['duration']*1000)-self.length) <= 1500:
                 close_results.append(video)
         # choose the result with the highest number of views
         if len(close_results) > 0:
             best_result = max(close_results, key=lambda track: track['view_count'])
-            print(close_results)
             self.url = ytdl_make_url(best_result)
             return self.url
 
