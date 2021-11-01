@@ -28,6 +28,8 @@ class VoiceState:
         self.play_next_song = asyncio.Event()
         self.songs = PlaylistManager.Playlist()
         self.audio_player = self.bot.loop.create_task(self.audio_player_task())
+        self.loop = False
+        self.shuffle = False
 
     @property
     def player(self):
@@ -77,6 +79,12 @@ class VoiceState:
             await self.ctx.send('Now playing: ' + str(title)) # todo make this a discord.embed
             self.ctx.voice_client.play(discord.FFmpegOpusAudio(URL, **FFMPEG_OPTIONS), after=self.toggle_next)
             await self.play_next_song.wait()
+            if self.loop:
+                await self.songs.put_song(self.current_song)
+            if self.shuffle:
+                # todo this can be optimized if we instead get a random element rather than shuffle all elements
+                #  however, the cpu time is negligible when playlist size <10000
+                self.songs.shuffle()
 
 
 
@@ -87,11 +95,11 @@ async def on_ready():
     print('We have logged in as {0.user}'.format(bot))
 
 
-def get_song_display(song):
-    if song.url:
-        return song.url
-    else:
-        return song.title + " - " + song.artist
+# def get_song_display(song):
+#     if song.url:
+#         return song.url
+#     else:
+#         return song.title + " - " + song.artist
 
 class MusicPlayer(commands.Cog):
     # use self.voice_states to enable usage in multiple servers
@@ -128,7 +136,7 @@ class MusicPlayer(commands.Cog):
         return await channel.connect()
 
 
-    @commands.command(aliases=['leave', 'l', 'q'])
+    @commands.command(aliases=['leave', 'q'])
     async def quit(self, ctx):
         # print(bot.voice_clients)
         if len(bot.voice_clients)>0:
@@ -146,21 +154,29 @@ class MusicPlayer(commands.Cog):
     async def resume(self, ctx):
         ctx.voice_client.resume()
 
-    @commands.command(aliases=[''])
+    @commands.command(aliases=[])
     async def skip(self, ctx):
-        ctx.voice_client.pause()
-        ctx.voice_state.toggle_next()
+        if ctx.voice_client.is_playing:
+            ctx.voice_client.stop()
+
+    @commands.command(aliases=['l'])
+    async def loop(self, ctx):
+        ctx.voice_state.loop = True
+
+    @commands.command(aliases=[])
+    async def shuffle(self, ctx):
+        ctx.voice_state.shuffle = True
 
     @commands.command(aliases=['display', 'print'])
     async def showqueue(self, ctx):
         # todo update this to a discord embedded message
         message = "```"
         for i, item in enumerate(ctx.voice_state.songs):
-            message += str(i) + ". " + get_song_display(item) + "\n"
+            message += str(i) + ". " + str(item) + "\n"
             if len(message) >= 1000:
                 message += "...\n"
                 last_item = ctx.voice_state.songs[len(ctx.voice_state.songs)-1]
-                message += str(len(ctx.voice_state.songs)) + ". " + get_song_display(last_item) + "\n"
+                message += str(len(ctx.voice_state.songs)) + ". " + str(last_item) + "\n"
                 break
         message += "```"
         await ctx.send(message)
@@ -184,6 +200,7 @@ class MusicPlayer(commands.Cog):
         # todo loop, repeat
         # todo if no url is available, use title and artist to find a source
         # todo what happens if you try to -play from multiple channels
+        # todo -stop should delete the queue
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
         elif len(args)>1:

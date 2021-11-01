@@ -97,7 +97,12 @@ class Song:
 
 
     def __str__(self):
-        return "url: " + self.url # todo maybe update this to either url or artist/name?
+        if not self.title and not self.artist:
+            return self.url
+        else:
+            if not self.artist:
+                return self.title
+            return self.title + " - " + self.artist
 
     # use the length of the song and find a video with similar length +/- 1.5 seconds
     # use several different metrics to find the correct track source on youtube/spotify
@@ -274,6 +279,9 @@ class Playlist(asyncio.Queue):
             await super().put(Song(link))
         return
 
+
+    async def put_song(self, song):
+        await super().put(song)
 
 
     async def put(self, item):
