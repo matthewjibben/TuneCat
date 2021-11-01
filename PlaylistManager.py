@@ -172,6 +172,9 @@ class Playlist(asyncio.Queue):
         self._spotify_playlist_re = re.compile(r"https?://(.*\.)*spotify.com/playlists?/(.*)")
         self._soundcloud_re = re.compile(r"https?://(.*\.)*soundcloud.com/(.*)")
         self._soundcloud_set_re = re.compile(r"https?://(.*\.)*soundcloud.com/(.*)/sets/(.*)")
+        self._yt_re = re.compile(r"https?://(.*\.)*youtube\.com/(.*)")
+        self._yt_share_re = re.compile(r"https?://(.*\.)*youtu\.be/(.*)")
+
 
 
 
@@ -257,6 +260,22 @@ class Playlist(asyncio.Queue):
         return
 
 
+    async def add_youtube_songs(self, link):
+        with ydl:
+            yt_metadata = ydl.extract_info(link, download=False)
+
+        # todo there might be a better way to do this using re to check if its a playlist/mix
+        try:
+            if yt_metadata['_type'] == 'playlist':
+                for track in yt_metadata['entries']:
+                    await super().put(Song(ytdl_make_url(track)))
+            pass
+        except:
+            await super().put(Song(link))
+        return
+
+
+
     async def put(self, item):
         # todo convert item to song
         try:
@@ -276,8 +295,13 @@ class Playlist(asyncio.Queue):
             elif self._soundcloud_re.match(item):
                 print("this is a soundcloud ==============================")
                 await self.add_soundcloud_songs(item)
+            elif self._yt_re.match(item) or self._yt_share_re.match(item):
+                print("youtuberbaf =============")
+                await self.add_youtube_songs(item)
             else:
-                await super().put(Song(item))
+                print("this is NOT GOOODD")
+                raise SourceError("Invalid link given")
+
 
 
 

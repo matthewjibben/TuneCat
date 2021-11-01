@@ -183,6 +183,7 @@ class MusicPlayer(commands.Cog):
         # todo if alone in a call, leave
         # todo loop, repeat
         # todo if no url is available, use title and artist to find a source
+        # todo what happens if you try to -play from multiple channels
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
         elif len(args)>1:
