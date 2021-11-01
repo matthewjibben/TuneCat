@@ -145,6 +145,7 @@ class MusicPlayer(commands.Cog):
     @commands.command(aliases=['s'])
     async def stop(self, ctx):
         ctx.voice_client.stop()
+        ctx.voice_state.songs.clear()
 
     @commands.command(aliases=[])
     async def pause(self, ctx):
