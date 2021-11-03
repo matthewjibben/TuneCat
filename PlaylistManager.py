@@ -3,7 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 load_dotenv()
 import os
-import youtube_dl
+import yt_dlp
 import asyncio
 import itertools
 import random
@@ -22,7 +22,7 @@ import sys
 spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=os.getenv('SPOTIFY_CLIENT_ID'),
                                                            client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')))
 
-ydl = youtube_dl.YoutubeDL({'dump_single_json': True,
+ydl = yt_dlp.YoutubeDL({'dump_single_json': True,
                             'extract_flat' : True})
 
 
@@ -50,9 +50,13 @@ class HiddenPrints:
         sys.stdout = self._original_stdout
 
 
-def ytdl_make_url(ytdl_dict):
-    # convert youtube_dl video dictionaries into valid urls
-    return f"https://www.youtube.com/watch?v={ytdl_dict['url']}"
+# def ytdl_make_url(ytdl_dict):
+#     # convert youtube_dl video dictionaries into valid urls
+#     # _yt_re = re.compile(r"https?://(.*\.)*youtube\.com/(.*)")
+#     # _yt_share_re = re.compile(r"https?://(.*\.)*youtu\.be/(.*)")
+#     print("DOING YTDL MAKE ====================")
+#     print(ytdl_dict)
+#     return f"https://www.youtube.com/watch?v={ytdl_dict['url']}"
 
 
 
@@ -147,7 +151,7 @@ class Song:
         # choose the result with the highest number of views
         if len(close_results) > 0:
             best_result = max(close_results, key=lambda track: track['view_count'])
-            self.url = ytdl_make_url(best_result)
+            self.url = best_result['url']
             return self.url
 
 
@@ -273,7 +277,7 @@ class Playlist(asyncio.Queue):
         try:
             if yt_metadata['_type'] == 'playlist':
                 for track in yt_metadata['entries']:
-                    await super().put(Song(ytdl_make_url(track)))
+                    await super().put(Song(track['url']))
             pass
         except:
             await super().put(Song(link))
@@ -292,7 +296,7 @@ class Playlist(asyncio.Queue):
         except:
             # if not a valid url, search youtube
             video_info = ydl.extract_info(f"ytsearch:{item}", download=False)['entries'][0]
-            video = Song(ytdl_make_url(video_info))
+            video = Song(video_info['url'])
             await super().put(video)
         else:
             # if it is a valid url, find an audio source and add to queue

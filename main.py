@@ -3,7 +3,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 load_dotenv()
 import os
-import youtube_dl
+import yt_dlp
 import asyncio
 import itertools
 import random
@@ -72,7 +72,7 @@ class VoiceState:
                     await self.ctx.send(f"Could not find a source for: {self.current_song.title} - {self.current_song.artist}")
                     continue
             # self.current_song.player.start()
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(self.current_song.url, download=False)
                 URL = info['formats'][0]['url']
                 title = info['title']
@@ -194,14 +194,7 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=['p'])
     async def play(self, ctx, *args):
-        # todo cannot play music while currently in a vc
-        # todo -play another song should add to queue
-        # todo -skip
         # todo if alone in a call, leave
-        # todo loop, repeat
-        # todo if no url is available, use title and artist to find a source
-        # todo what happens if you try to -play from multiple channels
-        # todo -stop should delete the queue
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
         elif len(args)>1:
