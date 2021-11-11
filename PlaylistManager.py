@@ -19,8 +19,8 @@ import sys
 
 
 
-spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-                                                           client_secret=os.getenv('SPOTIFY_CLIENT_SECRET')))
+spotify = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id=os.environ['SPOTIFY_CLIENT_ID'],
+                                                           client_secret=os.environ['SPOTIFY_CLIENT_SECRET']))
 
 ydl = yt_dlp.YoutubeDL({'dump_single_json': True,
                             'extract_flat' : True})
@@ -61,11 +61,11 @@ class HiddenPrints:
 
 
 
-soundcloud_guest_client_id = os.getenv('SOUNDCLOUD_CLIENT_ID')
+soundcloud_guest_client_id = os.environ['SOUNDCLOUD_CLIENT_ID']
 
 with HiddenPrints():
     soundcloud_api = SoundcloudAPI()
-    soundcloud_api.client_id = os.getenv('SOUNDCLOUD_CLIENT_ID')
+    soundcloud_api.client_id = os.environ['SOUNDCLOUD_CLIENT_ID']
 
 
 def soundcloud_search(query, cid):

@@ -49,7 +49,7 @@ class VoiceState:
     # play the next song in the queue until there are no more songs to play
     async def audio_player_task(self):
         FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                          'options': '-vn -bufsize 16k'}
+                          'options': '-vn -bufsize 32k'}
 
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -140,9 +140,11 @@ class MusicPlayer(commands.Cog):
     async def quit(self, ctx):
         # print(bot.voice_clients)
         if len(bot.voice_clients)>0:
+            ctx.voice_client.stop()
+            ctx.voice_state.songs.clear()
             await ctx.voice_client.disconnect()
 
-    @commands.command(aliases=['s'])
+    @commands.command(aliases=[])
     async def stop(self, ctx):
         ctx.voice_client.stop()
         ctx.voice_state.songs.clear()
@@ -155,25 +157,31 @@ class MusicPlayer(commands.Cog):
     async def resume(self, ctx):
         ctx.voice_client.resume()
 
-    @commands.command(aliases=[])
+    @commands.command(aliases=['s'])
     async def skip(self, ctx):
         if ctx.voice_client.is_playing:
             ctx.voice_client.stop()
 
     @commands.command(aliases=['l'])
-    async def loop(self, ctx):
-        ctx.voice_state.loop = True
+    async def loop(self, ctx, *args):
+        # todo this should return the queue to its original state when turned off
+        if len(args)==0 or args[0]=='on':
+            ctx.voice_state.loop = True
+            await ctx.send("Looping on")
+        elif args[0]=='off':
+            ctx.voice_state.loop = False
+            await ctx.send("Looping off")
 
     @commands.command(aliases=[])
     async def shuffle(self, ctx):
         ctx.voice_state.shuffle = True
 
-    @commands.command(aliases=['display', 'print'])
+    @commands.command(aliases=['display', 'print', 'queue'])
     async def showqueue(self, ctx):
         # todo update this to a discord embedded message
         message = "```"
         for i, item in enumerate(ctx.voice_state.songs):
-            message += str(i) + ". " + str(item) + "\n"
+            message += str(i+1) + ". " + str(item) + "\n"
             if len(message) >= 1000:
                 message += "...\n"
                 last_item = ctx.voice_state.songs[len(ctx.voice_state.songs)-1]
@@ -195,6 +203,11 @@ class MusicPlayer(commands.Cog):
     @commands.command(aliases=['p'])
     async def play(self, ctx, *args):
         # todo if alone in a call, leave
+        # todo if not in a call, dont load anything
+        # todo fix "enqueued" message
+        # todo add -help
+        # todo is youtube search faster or soundcloud?
+        # todo -queue current song
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
         elif len(args)>1:
@@ -251,6 +264,6 @@ class MusicPlayer(commands.Cog):
 
 
 
-# client.run(os.getenv('TOKEN'))
+# client.run(os.getenv('DISCORD_BOT_TOKEN'))
 bot.add_cog(MusicPlayer(bot))
-bot.run(os.getenv('TOKEN'))
+bot.run(os.environ['DISCORD_BOT_TOKEN'])
