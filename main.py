@@ -130,10 +130,16 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=['j'])
     async def join(self, ctx):
-        await ctx.send('joining...')
+        author_voice = ctx.author.voice
+        if author_voice:
+            channel = ctx.message.author.voice.channel
+            return await channel.connect()
+        else:
+            await ctx.send("No voice channel found")
+            raise VoiceError("No voice channel found")
 
-        channel = ctx.message.author.voice.channel
-        return await channel.connect()
+
+
 
 
     @commands.command(aliases=['leave', 'q'])
@@ -208,6 +214,16 @@ class MusicPlayer(commands.Cog):
         # todo add -help
         # todo is youtube search faster or soundcloud?
         # todo -queue current song
+
+
+        state = self.get_voice_state(ctx)
+
+        if not ctx.voice_client:
+            try:
+                await self.join(ctx)
+            except:
+                return
+
         if len(args)==0: # and ctx.voice_client.is_paused:
             return ctx.voice_client.resume()
         elif len(args)>1:
@@ -216,10 +232,6 @@ class MusicPlayer(commands.Cog):
             input_val = args[0]
 
 
-        state = self.get_voice_state(ctx)
-
-        if not ctx.voice_client:
-            await self.join(ctx)
         # todo check if supported url
         await ctx.voice_state.songs.put(input_val)
         await ctx.send('Enqueued {}'.format(str(input_val)))
