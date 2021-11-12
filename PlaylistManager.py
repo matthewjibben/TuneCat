@@ -300,18 +300,14 @@ class Playlist(asyncio.Queue):
             await super().put(video)
         else:
             # if it is a valid url, find an audio source and add to queue
-            # check if it is a spotify
+            # verify audio source
             if self._spotify_re.match(item):
-                print("this is a spotify ==============================")
                 await self.add_spotify_songs(item)
             elif self._soundcloud_re.match(item):
-                print("this is a soundcloud ==============================")
                 await self.add_soundcloud_songs(item)
             elif self._yt_re.match(item) or self._yt_share_re.match(item):
-                print("youtuberbaf =============")
                 await self.add_youtube_songs(item)
             else:
-                print("this is NOT GOOODD")
                 raise SourceError("Invalid link given")
 
 

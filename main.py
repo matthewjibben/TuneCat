@@ -170,7 +170,6 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=['l'])
     async def loop(self, ctx, *args):
-        # todo this should return the queue to its original state when turned off
         if len(args)==0 or args[0]=='on':
             ctx.voice_state.loop = True
             await ctx.send("Looping on")
@@ -210,7 +209,6 @@ class MusicPlayer(commands.Cog):
     async def play(self, ctx, *args):
         # todo if alone in a call, leave
         # todo if not in a call, dont load anything
-        # todo fix "enqueued" message
         # todo add -help
         # todo is youtube search faster or soundcloud?
         # todo -queue current song
@@ -232,9 +230,9 @@ class MusicPlayer(commands.Cog):
             input_val = args[0]
 
 
-        # todo check if supported url
         await ctx.voice_state.songs.put(input_val)
-        await ctx.send('Enqueued {}'.format(str(input_val)))
+        total_songs = len(ctx.voice_state.songs)
+        await ctx.send('Enqueued {} track(s)'.format(total_songs))
 
         if not ctx.voice_client.is_playing:
             state.toggle_next()
